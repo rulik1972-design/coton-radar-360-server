@@ -1,0 +1,8 @@
+{
+  "sequence": 1,
+  "sensors": [true, true, true],
+  "targets": [
+    {"sector": 1, "x_mm": 1200, "y_mm": 3100, "speed_cm_s": 30},
+    {"sector": 3, "x_mm": -700, "y_mm": 1500, "speed_cm_s": 0}
+  ]
+}
