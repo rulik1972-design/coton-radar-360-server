@@ -37,7 +37,7 @@ button:hover{background:#1c6b5d}
 .alarm-button.off:hover{background:#4e4032}
 .alarm-button.large{width:auto;min-width:140px;font-size:16px;padding:12px 18px}
 footer{text-align:center;color:#789b96;font-size:12px;padding:22px 0}
-.overlay{position:fixed;inset:0;background:#020b10d9;display:flex;align-items:center;justify-content:center;padding:12px;z-index:8}
+.overlay{position:fixed;inset:0;background:#020b10d9;display:flex;align-items:center;justify-content:center;padding:12px;z-index:3000}
 .hidden{display:none}
 .detail-box{width:min(96vw,760px);max-height:95vh;overflow:auto;background:#10252d;border:1px solid #438b7d;border-radius:15px;padding:14px}
 .detail-head{display:flex;justify-content:space-between;align-items:flex-start;gap:8px}
@@ -117,3 +117,7 @@ footer{text-align:center;color:#789b96;font-size:12px;padding:22px 0}
 .leaflet-container .leaflet-control-attribution{font-size:11px;line-height:1.5;background:#fffd;padding:0 5px;color:#333}
 .leaflet-container .leaflet-control-attribution a{color:#006b99}
 .leaflet-container .leaflet-grab{cursor:grab}.leaflet-container .leaflet-dragging{cursor:grabbing}
+
+/* V6: detail dialog above Leaflet panes, markers, controls and popups. */
+#detail.overlay:not(.hidden){z-index:3000}
+#detail .detail-box{position:relative;z-index:3001}
