@@ -204,7 +204,8 @@ function paint(canvas, d, t, large = false) {
       ctx.fillStyle = '#9bcabc';
       ctx.font = '15px system-ui';
       ctx.textAlign = 'left';
-      ctx.fillText(`${ring * 2} м`, c + 6, c - r * ring / 4 + 20);
+      const ringRadius = r * ring / 4;
+      ctx.fillText(`${ring * 2} м`, c + ringRadius * Math.sin(Math.PI / 7) + 5, c - ringRadius * Math.cos(Math.PI / 7) + 5);
     }
   }
   for (let k = 0; k < 12; k++) {
@@ -229,12 +230,24 @@ function paint(canvas, d, t, large = false) {
   ctx.lineWidth = large ? 2 : 1.3;
   ctx.stroke();
 
-  if (large) {
-    ctx.textAlign = 'center';
-    ctx.fillStyle = '#c7eadc';
-    ctx.font = '16px system-ui';
-    ctx.fillText('Пн 0°', c, 20);
+  // Підписи градусів через 30° на всіх десяти малих радарах і на великому.
+  // Текст всередині зовнішнього кільця, щоб не обрізався по краях canvas.
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.font = `600 ${large ? 15 : 12}px system-ui`;
+  for (let deg = 0; deg < 360; deg += 30) {
+    const a = deg * Math.PI / 180;
+    const labelRadius = r - (large ? 19 : 16);
+    const px = c + labelRadius * Math.sin(a);
+    const py = c - labelRadius * Math.cos(a);
+    const label = `${deg}°`;
+    ctx.lineWidth = large ? 4 : 3;
+    ctx.strokeStyle = '#082329';
+    ctx.strokeText(label, px, py);
+    ctx.fillStyle = deg % 90 === 0 ? '#e5fff6' : '#a5d8ca';
+    ctx.fillText(label, px, py);
   }
+  ctx.textBaseline = 'alphabetic';
 
   if (d.online) {
     const head = (d.heading_deg || 0) * Math.PI / 180;
