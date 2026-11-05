@@ -4,6 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>COTON RADAR NETWORK — 10 комплексів</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoKPmELk8XGkbQ=" crossorigin="">
   <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
@@ -29,7 +30,17 @@
 
   <p id="notice" class="notice">Дані оновлюються автоматично. Для перевірки без модемів натисни «Увімкнути ДЕМО».</p>
 
-  <section class="cards" id="cards"></section>
+  <nav class="view-tabs" aria-label="Режим перегляду">
+    <button id="tab-map" type="button" aria-pressed="true" class="active">🗺 КАРТА</button>
+    <button id="tab-radars" type="button" aria-pressed="false">◎ 10 РАДАРІВ</button>
+  </nav>
+  <section id="map-panel" class="map-panel">
+    <div class="map-info"><strong>Івано-Франківськ</strong><span>Демонстраційні координати • натисни на прапорець, щоб відкрити радар</span></div>
+    <div id="radar-map" role="region" aria-label="Карта Івано-Франківська з радарними прапорцями"></div>
+    <p class="map-legend"><span>🟢 CLEAR</span><span>🔴 ALARM — блимає</span><span>⚪ OFFLINE</span></p>
+    <p id="map-hint" class="map-hint">Натисни «Увімкнути ДЕМО», щоб побачити десять прапорців. У режимі LIVE без GPS координат прапорці не відображаються.</p>
+  </section>
+  <section class="cards hidden" id="cards"></section>
 
   <div id="detail" class="overlay hidden" role="dialog" aria-modal="true">
     <div class="detail-box">
@@ -52,6 +63,7 @@
 
   <footer>ДЕМО відображається тільки в цьому браузері. Реальні дані надходять окремо через /api/ingest. Тестовий Render Free не є надійною охоронною системою.</footer>
 </main>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
 <script src="/static/app.js"></script>
 </body>
 </html>

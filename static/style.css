@@ -54,3 +54,24 @@ footer{text-align:center;color:#789b96;font-size:12px;padding:22px 0}
 .details p{grid-column:1/-1;font-size:13px}
 @media(max-width:1050px){.cards{grid-template-columns:repeat(3,minmax(0,1fr))}}
 @media(max-width:620px){.cards{grid-template-columns:repeat(2,minmax(0,1fr))}.totals{grid-template-columns:repeat(2,1fr)}main{padding:10px}.unit{padding:7px}.unit h2{font-size:13px}.meta{min-height:auto}.detail-head{flex-direction:column}.detail-head-right{width:100%;justify-content:space-between}.details{grid-template-columns:1fr}}
+
+/* Interactive map and numbered alert flags */
+.view-tabs{display:flex;gap:10px;margin:14px 0 12px;flex-wrap:wrap}
+.view-tabs button{min-width:145px;background:#112c34;color:#cce8df;border:1px solid #32665d}
+.view-tabs button.active{background:#1a6858;color:#fff;border-color:#79dfb9;box-shadow:inset 0 -3px 0 #76f1c4}
+.map-panel{background:#10242c;border:1px solid #27565a;border-radius:14px;padding:10px;margin:6px 0 18px}
+.map-info{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;padding:5px 4px 10px}
+.map-info strong{font-size:18px}
+.map-info span{font-size:12px;color:#a7c7bf}
+#radar-map{height:min(65vh,650px);min-height:400px;width:100%;border:1px solid #345d61;border-radius:9px;overflow:hidden;color:#101c20}
+.map-legend{display:flex;align-items:center;gap:18px;flex-wrap:wrap;padding:10px 4px 2px;font-size:12px;color:#d5e9df}
+.map-hint{font-size:12px;padding:2px 4px 9px;color:#9fc5bc}
+.radar-pin-wrap{background:none;border:none}
+.radar-pin{position:relative;width:36px;height:36px;border-radius:50% 50% 50% 0;transform:rotate(-45deg);border:3px solid #fff;display:flex;justify-content:center;align-items:center;box-shadow:0 2px 9px #0007;cursor:pointer}
+.radar-pin .pin-number{transform:rotate(45deg);font-size:13px;line-height:1;font-weight:900;color:#fff;text-shadow:0 1px 2px #0009}
+.radar-pin.clear{background:#009b72}
+.radar-pin.offline{background:#787f86}
+.radar-pin.alarm{background:#ec333a;animation:radarBlink 1.1s steps(2,start) infinite}
+@keyframes radarBlink{0%,100%{background:#ec333a;box-shadow:0 0 0 4px #ff343a80,0 2px 14px #f00a}50%{background:#7c1319;box-shadow:0 0 0 10px #ff343a20,0 2px 9px #0008}}
+@media (prefers-reduced-motion:reduce){.radar-pin.alarm{animation:none;background:#ec333a}}
+@media(max-width:620px){#radar-map{height:60vh;min-height:360px}.view-tabs button{flex:1}}

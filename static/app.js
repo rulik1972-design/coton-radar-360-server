@@ -276,6 +276,97 @@ function paint(canvas, d, t, large = false) {
   ctx.fill();
 }
 
+// COTON RADAR MAP — ten explicitly fictional positions within Ivano-Frankivsk.
+// These are DEMO points, not live GPS coordinates.
+const DEMO_LOCATIONS = [
+  [48.92260, 24.71030], [48.92780, 24.71930], [48.91810, 24.72860],
+  [48.91440, 24.70120], [48.93430, 24.70280], [48.94000, 24.72680],
+  [48.90940, 24.72050], [48.92440, 24.68520], [48.94430, 24.69480],
+  [48.90430, 24.74030]
+];
+let mapView = null;
+const mapMarkers = {};
+let currentTab = 'map';
+function setTab(tab) {
+  currentTab = tab;
+  const showMap = tab === 'map';
+  $('map-panel').classList.toggle('hidden', !showMap);
+  $('cards').classList.toggle('hidden', showMap);
+  $('tab-map').classList.toggle('active', showMap);
+  $('tab-radars').classList.toggle('active', !showMap);
+  $('tab-map').setAttribute('aria-pressed', String(showMap));
+  $('tab-radars').setAttribute('aria-pressed', String(!showMap));
+  if (showMap && mapView) {
+    setTimeout(() => mapView.invalidateSize(), 0);
+    updateMapMarkers(Date.now(), true);
+  }
+}
+$('tab-map').addEventListener('click', () => setTab('map'));
+$('tab-radars').addEventListener('click', () => setTab('radars'));
+function initMap() {
+  if (!window.L) {
+    $('radar-map').textContent = 'Не вдалося завантажити карту. Перевір з’єднання з інтернетом.';
+    return;
+  }
+  mapView = L.map('radar-map', { zoomControl: true }).setView([48.9226, 24.7111], 13);
+  L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom: 19,
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> contributors'
+  }).addTo(mapView);
+  setTimeout(() => mapView.invalidateSize(), 0);
+}
+function mapPositionFor(d, i) {
+  if (demo) return DEMO_LOCATIONS[i];
+  // LIVE points only if verified numeric GPS fields are returned by the server.
+  const lat = d.latitude, lon = d.longitude;
+  if (d.online && typeof lat === 'number' && typeof lon === 'number' &&
+      Number.isFinite(lat) && Number.isFinite(lon) &&
+      lat >= -90 && lat <= 90 && lon >= -180 && lon <= 180 && (lat !== 0 || lon !== 0)) {
+    return [lat, lon];
+  }
+  return null;
+}
+let lastMarkerUpdate = 0;
+function updateMapMarkers(t, force = false) {
+  if (!mapView || (!force && t - lastMarkerUpdate < 350)) return;
+  lastMarkerUpdate = t;
+  let activePositions = 0;
+  for (let i = 0; i < IDS.length; i++) {
+    const rid = IDS[i], d = get(rid, t);
+    const coords = mapPositionFor(d, i);
+    if (!coords) {
+      if (mapMarkers[rid]) { mapMarkers[rid].remove(); delete mapMarkers[rid]; }
+      continue;
+    }
+    activePositions++;
+    const state = !d.online ? 'offline' : (d.targets || []).length ? 'alarm' : 'clear';
+    const label = String(i + 1);
+    const icon = L.divIcon({
+      className: 'radar-pin-wrap',
+      html: `<span class="radar-pin ${state}" aria-label="${rid}: ${state}"><span class="pin-number">${label}</span></span>`,
+      iconSize: [36, 46], iconAnchor: [18, 42]
+    });
+    if (!mapMarkers[rid]) {
+      const marker = L.marker(coords, { icon, title: rid }).addTo(mapView);
+      marker.on('click', () => openDetail(rid));
+      mapMarkers[rid] = marker;
+    } else {
+      const marker = mapMarkers[rid];
+      const oldPos = marker.getLatLng();
+      if (oldPos.lat !== coords[0] || oldPos.lng !== coords[1]) marker.setLatLng(coords);
+      if (marker._cotonState !== state) marker.setIcon(icon);
+    }
+    mapMarkers[rid]._cotonState = state;
+  }
+  $('map-hint').textContent = demo
+    ? 'ДЕМО: місця прапорців вигадані, GPS-модулі не підключені. Натисни на будь-який прапорець.'
+    : activePositions
+      ? 'LIVE: відображаються координати, які передані комплексами через сервер.'
+      : 'LIVE: GPS-координати ще не надходять. Натисни «Увімкнути ДЕМО», щоб побачити десять прапорців.';
+}
+initMap();
+setTab('map');
+
 function draw(t) {
   let online = 0, alarm = 0, n = 0;
 
@@ -322,6 +413,7 @@ function draw(t) {
       </div>`;
   }
 
+  updateMapMarkers(t);
   requestAnimationFrame(draw);
 }
 requestAnimationFrame(draw);
