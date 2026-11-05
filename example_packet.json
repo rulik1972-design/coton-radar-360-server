@@ -1,8 +1,18 @@
 {
-  "sequence": 1,
-  "sensors": [true, true, true],
+  "device_id": "RADAR-03",
+  "sequence": 42,
+  "sensors": [
+    true,
+    true,
+    true
+  ],
   "targets": [
-    {"sector": 1, "x_mm": 1200, "y_mm": 3100, "speed_cm_s": 30},
-    {"sector": 3, "x_mm": -700, "y_mm": 1500, "speed_cm_s": 0}
-  ]
+    {
+      "sector": 2,
+      "x_mm": 1200,
+      "y_mm": 3500,
+      "speed_cm_s": -35
+    }
+  ],
+  "heading_deg": 30
 }
