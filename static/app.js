@@ -276,13 +276,19 @@ function paint(canvas, d, t, large = false) {
   ctx.fill();
 }
 
-// COTON RADAR MAP — ten explicitly fictional positions within Ivano-Frankivsk.
-// These are DEMO points, not live GPS coordinates.
+// COTON RADAR NETWORK — illustrative demo positions near towns in eastern Finland.
+// Not real devices, border installations, or precise field sites.
 const DEMO_LOCATIONS = [
-  [48.92260, 24.71030], [48.92780, 24.71930], [48.91810, 24.72860],
-  [48.91440, 24.70120], [48.93430, 24.70280], [48.94000, 24.72680],
-  [48.90940, 24.72050], [48.92440, 24.68520], [48.94430, 24.69480],
-  [48.90430, 24.74030]
+  [61.061, 28.190], // 01 Lappeenranta
+  [61.169, 28.769], // 02 Imatra
+  [62.601, 29.763], // 03 Joensuu
+  [63.317, 30.024], // 04 Lieksa
+  [64.127, 29.517], // 05 Kuhmo
+  [64.888, 28.913], // 06 Suomussalmi
+  [65.965, 29.188], // 07 Kuusamo
+  [66.833, 28.670], // 08 Salla
+  [66.713, 27.430], // 09 Kemijärvi
+  [68.656, 27.539]  // 10 Ivalo
 ];
 let mapView = null;
 const mapMarkers = {};
@@ -308,11 +314,13 @@ function initMap() {
     $('radar-map').textContent = 'Не вдалося завантажити карту. Перевір з’єднання з інтернетом.';
     return;
   }
-  mapView = L.map('radar-map', { zoomControl: true }).setView([48.9226, 24.7111], 13);
+  mapView = L.map('radar-map', { zoomControl: true }).setView([65.0, 28.7], 6);
   L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
     maxZoom: 19,
     attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> contributors'
   }).addTo(mapView);
+  // Fit the whole illustrative Finnish radar network into view.
+  mapView.fitBounds(L.latLngBounds(DEMO_LOCATIONS), { padding: [35, 35], maxZoom: 7 });
   setTimeout(() => mapView.invalidateSize(), 0);
 }
 function mapPositionFor(d, i) {
