@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>COTON RADAR NETWORK — 10 комплексів</title>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css">
-  <link rel="stylesheet" href="/static/style.css?v=5">
+  <link rel="stylesheet" href="/static/style.css?v=8">
 </head>
 <body>
 <main>
@@ -13,31 +13,35 @@
     <div>
       <small>COTON SYSTEMS &amp; RADAR 360</small>
       <h1>RADAR NETWORK <b>10</b></h1>
-      <p>Диспетчерська панель · 10 комплексів × 3 датчики</p>
+      <p id="subtitle">Диспетчерська панель · 10 комплексів × 3 датчики</p>
     </div>
     <div class="actions">
+      <div class="language-switch" role="group" aria-label="Language / Мова">
+        <button type="button" id="lang-uk" class="lang-btn active" aria-pressed="true">Українська</button>
+        <button type="button" id="lang-en" class="lang-btn" aria-pressed="false">English</button>
+      </div>
       <button id="demo">Увімкнути ДЕМО</button>
       <span id="mode" class="pill">LIVE</span>
     </div>
   </header>
 
   <section class="totals">
-    <article>Комплексів онлайн<strong id="online">0 / 10</strong></article>
-    <article>Тривог<strong id="alarms">0</strong></article>
-    <article>Усього цілей<strong id="total">0</strong></article>
-    <article>Без зв’язку<strong id="offline">10</strong></article>
+    <article><span id="label-online">Комплексів онлайн</span><strong id="online">0 / 10</strong></article>
+    <article><span id="label-alarms">Тривог</span><strong id="alarms">0</strong></article>
+    <article><span id="label-total">Усього цілей</span><strong id="total">0</strong></article>
+    <article><span id="label-offline">Без зв’язку</span><strong id="offline">10</strong></article>
   </section>
 
   <p id="notice" class="notice">Дані оновлюються автоматично. Для перевірки без модемів натисни «Увімкнути ДЕМО».</p>
 
-  <nav class="view-tabs" aria-label="Режим перегляду">
+  <nav class="view-tabs" id="view-tabs" aria-label="Режим перегляду">
     <button id="tab-map" type="button" aria-pressed="true" class="active">🗺 КАРТА</button>
     <button id="tab-radars" type="button" aria-pressed="false">◎ 10 РАДАРІВ</button>
   </nav>
   <section id="map-panel" class="map-panel">
-    <div class="map-info"><strong>Фінляндія — східні регіони</strong><span>Умовні позиції поблизу східних міст • натисни на прапорець, щоб відкрити радар</span></div>
+    <div class="map-info"><strong id="map-title">Фінляндія — східні регіони</strong><span id="map-subtitle">Умовні позиції поблизу східних міст • натисни на прапорець, щоб відкрити радар</span></div>
     <div id="radar-map" role="region" aria-label="Карта східної Фінляндіїа з радарними прапорцями"></div>
-    <p class="map-legend"><span>🟢 CLEAR</span><span>🔴 ALARM — блимає</span><span>⚪ OFFLINE</span></p>
+    <p class="map-legend"><span id="legend-clear">🟢 CLEAR</span><span id="legend-alarm">🔴 ALARM — блимає</span><span id="legend-offline">⚪ OFFLINE</span></p>
     <p id="map-hint" class="map-hint">Натисни «Увімкнути ДЕМО», щоб побачити десять прапорців. У режимі LIVE без GPS координат прапорці не відображаються.</p>
   </section>
   <section class="cards hidden" id="cards"></section>
@@ -47,7 +51,7 @@
       <div class="detail-head">
         <div>
           <small id="detail-id">RADAR-01</small>
-          <h2>Огляд 360°</h2>
+          <h2 id="detail-title">Огляд 360°</h2>
         </div>
         <div class="detail-head-right">
           <button id="detail-alarm" class="alarm-button clear large" type="button">CLEAR</button>
@@ -61,9 +65,9 @@
     </div>
   </div>
 
-  <footer>ДЕМО відображається тільки в цьому браузері. Реальні дані надходять окремо через /api/ingest. Тестовий Render Free не є надійною охоронною системою.</footer>
+  <footer id="footer-note">ДЕМО відображається тільки в цьому браузері. Реальні дані надходять окремо через /api/ingest. Тестовий Render Free не є надійною охоронною системою.</footer>
 </main>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
-<script src="/static/app.js?v=7"></script>
+<script src="/static/app.js?v=8"></script>
 </body>
 </html>

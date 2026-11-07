@@ -1,8 +1,107 @@
 const IDS = Array.from({ length: 10 }, (_, i) => `RADAR-${String(i + 1).padStart(2, '0')}`);
 const $ = id => document.getElementById(id);
-let live = {}, demo = false, selected = null, lastFetch = 0;
+let live = {}, demo = false, selected = null, lastFetch = 0, fetchError = null, hasFetched = false;
 const cards = $('cards');
 const canvases = {};
+
+// Interface localization. Language preference is stored only in this browser.
+const I18N = {
+  uk: {
+    pageTitle: 'COTON RADAR NETWORK — 10 комплексів',
+    subtitle: 'Диспетчерська панель · 10 комплексів × 3 датчики',
+    demoOn: 'Увімкнути ДЕМО', demoOff: 'Вимкнути ДЕМО',
+    online: 'Комплексів онлайн', alarms: 'Тривог', total: 'Усього цілей', offline: 'Без зв’язку',
+    mapTab: '🗺 КАРТА', radarsTab: '◎ 10 РАДАРІВ', viewLabel: 'Режим перегляду',
+    mapTitle: 'Фінляндія — східні регіони',
+    mapSubtitle: 'Умовні позиції поблизу східних міст • натисни на прапорець, щоб відкрити радар',
+    mapAria: 'Карта східної Фінляндії з радарними прапорцями',
+    legendClear: '🟢 CLEAR', legendAlarm: '🔴 ALARM — блимає', legendOffline: '⚪ OFFLINE',
+    close: '✕ Закрити', closeAria: 'Закрити', detailTitle: 'Огляд 360°',
+    noTargets: 'Цілей немає', noTargetsFull: 'Цілей немає.', outOfRange: 'Комплекс офлайн.', noConnection: 'Без зв’язку',
+    footer: 'ДЕМО відображається тільки в цьому браузері. Реальні дані надходять окремо через /api/ingest. Тестовий Render Free не є надійною охоронною системою.',
+    initialNotice: 'Дані оновлюються автоматично. Для перевірки без модемів натисни «Увімкнути ДЕМО».',
+    liveNotice: 'Дані з сервера. Натисни на радар або кнопку ALARM/CLEAR для перегляду на весь екран.',
+    errorPrefix: 'Немає зв’язку із сервером: ',
+    leafletError: 'Не вдалося завантажити карту. Перевір з’єднання з інтернетом.',
+    hintDemo: 'ДЕМО: місця прапорців вигадані, GPS-модулі не підключені. Натисни на будь-який прапорець.',
+    hintLive: 'LIVE: відображаються координати, які передані комплексами через сервер.',
+    hintNoGps: 'LIVE: GPS-координати ще не надходять. Натисни «Увімкнути ДЕМО», щоб побачити десять прапорців.',
+    state: 'СТАН', targets: 'ЦІЛЕЙ', direction: 'НАПРЯМОК', heading: 'Курс', noCompass: 'немає компаса', updated: 'Оновлення',
+    targetsInZone: 'Цілі в зоні:', numberTargets: 'Цілей', radar: 'Радар', target: 'Ціль', moreTargets: 'Ще цілей:',
+    stationary: 'нерухома', standing: 'стоїть', approachingFrom: 'наближається з', movingAwayTowards: 'віддаляється у бік',
+    from: 'з', towards: 'у бік', statusPrefix: 'Стан', sensorsOffline: 'без зв’язку',
+    northDirections: ['півночі', 'північного сходу', 'сходу', 'південного сходу', 'півдня', 'південного заходу', 'заходу', 'північного заходу'],
+    shortDirections: ['Пн', 'ПнСх', 'Сх', 'ПдСх', 'Пд', 'ПдЗх', 'Зх', 'ПнЗх'],
+    meters: 'м', kmh: 'км/год', sec: 'с',
+    pinClear: 'немає тривоги', pinAlarm: 'тривога', pinOffline: 'немає зв’язку'
+  },
+  en: {
+    pageTitle: 'COTON RADAR NETWORK — 10 systems',
+    subtitle: 'Monitoring dashboard · 10 systems × 3 sensors',
+    demoOn: 'Enable DEMO', demoOff: 'Disable DEMO',
+    online: 'Systems online', alarms: 'Alerts', total: 'Total targets', offline: 'Offline',
+    mapTab: '🗺 MAP', radarsTab: '◎ 10 RADARS', viewLabel: 'View mode',
+    mapTitle: 'Finland — eastern regions',
+    mapSubtitle: 'Illustrative positions near eastern towns · click a pin to open a radar',
+    mapAria: 'Map of eastern Finland with radar pins',
+    legendClear: '🟢 CLEAR', legendAlarm: '🔴 ALARM — flashing', legendOffline: '⚪ OFFLINE',
+    close: '✕ Close', closeAria: 'Close', detailTitle: '360° View',
+    noTargets: 'No targets', noTargetsFull: 'No targets detected.', outOfRange: 'System offline.', noConnection: 'No connection',
+    footer: 'DEMO is local to this browser. Live data is received separately via /api/ingest. Render Free is not a dependable security system.',
+    initialNotice: 'Data updates automatically. To test without modems, click “Enable DEMO”.',
+    liveNotice: 'Live server data. Click a radar or its ALARM/CLEAR button to open the full view.',
+    errorPrefix: 'Cannot connect to server: ',
+    leafletError: 'Map could not be loaded. Check your internet connection.',
+    hintDemo: 'DEMO: pin locations are fictional. GPS hardware is not connected. Click any pin.',
+    hintLive: 'LIVE: showing coordinates reported by the systems through the server.',
+    hintNoGps: 'LIVE: no GPS coordinates received yet. Click “Enable DEMO” to view ten sample pins.',
+    state: 'STATUS', targets: 'TARGETS', direction: 'HEADING', heading: 'Heading', noCompass: 'no compass', updated: 'Updated',
+    targetsInZone: 'Targets in range:', numberTargets: 'Targets', radar: 'Radar', target: 'Target', moreTargets: 'Additional targets:',
+    stationary: 'stationary', standing: 'stationary', approachingFrom: 'approaching from', movingAwayTowards: 'moving away toward',
+    from: 'from', towards: 'toward', statusPrefix: 'Status', sensorsOffline: 'no connection',
+    northDirections: ['north', 'northeast', 'east', 'southeast', 'south', 'southwest', 'west', 'northwest'],
+    shortDirections: ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'],
+    meters: 'm', kmh: 'km/h', sec: 's',
+    pinClear: 'clear', pinAlarm: 'alarm', pinOffline: 'offline'
+  }
+};
+let language = 'uk';
+try { language = localStorage.getItem('coton-language') === 'en' ? 'en' : 'uk'; } catch(e) { /* storage disabled */ }
+const tr = () => I18N[language];
+const decimal = n => Number(n).toLocaleString(language === 'uk' ? 'uk-UA' : 'en-US', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+function setLanguage(lang) {
+  language = lang === 'en' ? 'en' : 'uk';
+  try { localStorage.setItem('coton-language', language); } catch(e) { /* private mode */ }
+  const x = tr();
+  document.documentElement.lang = language;
+  document.title = x.pageTitle;
+  const set = (id, value) => { const el = $(id); if (el) el.textContent = value; };
+  set('subtitle', x.subtitle);
+  set('demo', demo ? x.demoOff : x.demoOn);
+  set('label-online', x.online); set('label-alarms', x.alarms);
+  set('label-total', x.total); set('label-offline', x.offline);
+  set('tab-map', x.mapTab); set('tab-radars', x.radarsTab);
+  $('view-tabs').setAttribute('aria-label', x.viewLabel);
+  set('map-title', x.mapTitle); set('map-subtitle', x.mapSubtitle);
+  $('radar-map').setAttribute('aria-label', x.mapAria);
+  set('legend-clear', x.legendClear); set('legend-alarm', x.legendAlarm); set('legend-offline', x.legendOffline);
+  set('detail-title', x.detailTitle); set('close', x.close); $('close').setAttribute('aria-label', x.closeAria);
+  set('footer-note', x.footer);
+  set('notice', fetchError ? x.errorPrefix + fetchError : hasFetched ? x.liveNotice : x.initialNotice);
+  set('map-hint', x.hintNoGps);
+  if (!window.L) set('radar-map', x.leafletError);
+  for (const id of ['uk','en']) {
+    const button = $('lang-' + id);
+    button.classList.toggle('active', id === language);
+    button.setAttribute('aria-pressed', String(id === language));
+  }
+  // Keep live/demo data, selected radar, and map state when switching.
+  for (const marker of Object.values(mapMarkers)) marker._cotonState = null;
+  updateMapMarkers(Date.now(), true);
+}
+$('lang-uk').addEventListener('click', () => setLanguage('uk'));
+$('lang-en').addEventListener('click', () => setLanguage('en'));
+
 
 for (const rid of IDS) {
   const cell = document.createElement('article');
@@ -14,8 +113,8 @@ for (const rid of IDS) {
       <h2>${rid}</h2>
       <span class="state off" id="badge-${rid}">OFFLINE</span>
     </div>
-    <canvas width="300" height="300" aria-label="Радар ${rid}"></canvas>
-    <div class="meta" id="meta-${rid}">Немає зв’язку</div>
+    <canvas width="300" height="300" aria-label="${tr().radar} ${rid}"></canvas>
+    <div class="meta" id="meta-${rid}">${tr().noConnection}</div>
     <div class="unit-actions">
       <button class="alarm-button off" id="alarm-${rid}" type="button">OFFLINE</button>
     </div>`;
@@ -28,7 +127,7 @@ for (const rid of IDS) {
 
 $('demo').addEventListener('click', () => {
   demo = !demo;
-  $('demo').textContent = demo ? 'Вимкнути ДЕМО' : 'Увімкнути ДЕМО';
+  $('demo').textContent = demo ? tr().demoOff : tr().demoOn;
   $('mode').textContent = demo ? 'DEMO' : 'LIVE';
   $('mode').className = 'pill ' + (demo ? 'demo' : '');
 });
@@ -92,10 +191,11 @@ async function refresh() {
       if (IDS.includes(r.device_id)) live[r.device_id] = r;
     }
     lastFetch = Date.now();
-    $('notice').textContent = 'Дані з сервера. Натисни на радар або кнопку ALARM/CLEAR для перегляду на весь екран.';
+    hasFetched = true; fetchError = null;
+    $('notice').textContent = tr().liveNotice;
   } catch (e) {
-    live = {};
-    $('notice').textContent = 'Немає зв’язку із сервером: ' + e.message;
+    live = {}; fetchError = e.message;
+    $('notice').textContent = tr().errorPrefix + e.message;
   }
 }
 setInterval(refresh, 1200);
@@ -114,57 +214,41 @@ function bearingDeg(x, y) {
   return (Math.atan2(x, y) * 180 / Math.PI + 360) % 360;
 }
 
-function directionName(deg) {
-  const dirs = [
-    'півночі', 'північного сходу', 'сходу', 'південного сходу',
-    'півдня', 'південного заходу', 'заходу', 'північного заходу'
-  ];
-  return dirs[Math.round(deg / 45) % 8];
-}
-
-function shortDirection(deg) {
-  const dirs = ['Пн', 'ПнСх', 'Сх', 'ПдСх', 'Пд', 'ПдЗх', 'Зх', 'ПнЗх'];
-  return dirs[Math.round(deg / 45) % 8];
-}
+function directionName(deg) { return tr().northDirections[Math.round(deg / 45) % 8]; }
+function shortDirection(deg) { return tr().shortDirections[Math.round(deg / 45) % 8]; }
 
 function speedKmh(speedCmS) {
   return Math.abs(speedCmS) * 0.036;
 }
 
 function targetDescription(tar, headingDeg, idx, compact = false) {
+  const x = tr();
   const g = toGlobalTarget(tar, headingDeg || 0);
   const brg = bearingDeg(g.x, g.y);
   const dirLong = directionName(brg);
   const dirShort = shortDirection(brg);
   const kmh = speedKmh(g.speed);
-  const distTxt = `${g.dist.toFixed(1)} м`;
-
-  if (Math.abs(g.speed) < 5) {
-    return compact
-      ? `Ціль ${idx}: стоїть • ${distTxt}`
-      : `Ціль ${idx}: нерухома • ${distTxt}`;
-  }
-
+  const distTxt = `${decimal(g.dist)} ${x.meters}`;
+  const speedTxt = `${decimal(kmh)} ${x.kmh}`;
+  if (Math.abs(g.speed) < 5) return `${x.target} ${idx}: ${compact ? x.standing : x.stationary} • ${distTxt}`;
   if (g.speed < 0) {
-    return compact
-      ? `Ціль ${idx}: з ${dirShort} • ${kmh.toFixed(1)} км/год`
-      : `Ціль ${idx}: наближається з ${dirLong} • ${kmh.toFixed(1)} км/год • ${distTxt}`;
+    return compact ? `${x.target} ${idx}: ${x.from} ${dirShort} • ${speedTxt}`
+                   : `${x.target} ${idx}: ${x.approachingFrom} ${dirLong} • ${speedTxt} • ${distTxt}`;
   }
-
-  return compact
-    ? `Ціль ${idx}: у бік ${dirShort} • ${kmh.toFixed(1)} км/год`
-    : `Ціль ${idx}: віддаляється у бік ${dirLong} • ${kmh.toFixed(1)} км/год • ${distTxt}`;
+  return compact ? `${x.target} ${idx}: ${x.towards} ${dirShort} • ${speedTxt}`
+                 : `${x.target} ${idx}: ${x.movingAwayTowards} ${dirLong} • ${speedTxt} • ${distTxt}`;
 }
 
 function buildSummary(d, compact = false, maxItems = 3) {
-  if (!d.online) return compact ? 'Без зв’язку' : 'Комплекс офлайн.';
+  const x = tr();
+  if (!d.online) return compact ? x.noConnection : x.outOfRange;
   const targets = d.targets || [];
-  if (!targets.length) return compact ? 'Цілей немає' : 'Цілей немає.';
+  if (!targets.length) return compact ? x.noTargets : x.noTargetsFull;
   const out = [];
   for (let i = 0; i < Math.min(targets.length, maxItems); i++) {
     out.push(targetDescription(targets[i], d.heading_deg || 0, i + 1, compact));
   }
-  if (targets.length > maxItems) out.push(`Ще цілей: ${targets.length - maxItems}`);
+  if (targets.length > maxItems) out.push(`${x.moreTargets} ${targets.length - maxItems}`);
   return out;
 }
 
@@ -181,7 +265,7 @@ function setAlarmButton(btn, d, large = false) {
     btn.classList.add('clear');
   }
   if (large) {
-    btn.setAttribute('aria-label', `Стан ${d.device_id || ''}: ${btn.textContent}`);
+    btn.setAttribute('aria-label', `${tr().statusPrefix} ${d.device_id || ''}: ${btn.textContent}`);
   }
 }
 
@@ -205,7 +289,7 @@ function paint(canvas, d, t, large = false) {
       ctx.font = '15px system-ui';
       ctx.textAlign = 'left';
       const ringRadius = r * ring / 4;
-      ctx.fillText(`${ring * 2} м`, c + ringRadius * Math.sin(Math.PI / 7) + 5, c - ringRadius * Math.cos(Math.PI / 7) + 5);
+      ctx.fillText(`${ring * 2} ${tr().meters}`, c + ringRadius * Math.sin(Math.PI / 7) + 5, c - ringRadius * Math.cos(Math.PI / 7) + 5);
     }
   }
   for (let k = 0; k < 12; k++) {
@@ -311,7 +395,7 @@ $('tab-map').addEventListener('click', () => setTab('map'));
 $('tab-radars').addEventListener('click', () => setTab('radars'));
 function initMap() {
   if (!window.L) {
-    $('radar-map').textContent = 'Не вдалося завантажити карту. Перевір з’єднання з інтернетом.';
+    $('radar-map').textContent = tr().leafletError;
     return;
   }
   mapView = L.map('radar-map', { zoomControl: true }).setView([65.0, 28.7], 6);
@@ -351,7 +435,7 @@ function updateMapMarkers(t, force = false) {
     const label = String(i + 1);
     const icon = L.divIcon({
       className: 'radar-pin-wrap',
-      html: `<span class="radar-pin ${state}" aria-label="${rid}: ${state}"><span class="pin-number">${label}</span></span>`,
+      html: `<span class="radar-pin ${state}" aria-label="${rid}: ${state === 'offline' ? tr().pinOffline : state === 'alarm' ? tr().pinAlarm : tr().pinClear}"><span class="pin-number">${label}</span></span>`,
       iconSize: [36, 46], iconAnchor: [18, 42]
     });
     if (!mapMarkers[rid]) {
@@ -367,13 +451,12 @@ function updateMapMarkers(t, force = false) {
     mapMarkers[rid]._cotonState = state;
   }
   $('map-hint').textContent = demo
-    ? 'ДЕМО: місця прапорців вигадані, GPS-модулі не підключені. Натисни на будь-який прапорець.'
-    : activePositions
-      ? 'LIVE: відображаються координати, які передані комплексами через сервер.'
-      : 'LIVE: GPS-координати ще не надходять. Натисни «Увімкнути ДЕМО», щоб побачити десять прапорців.';
+    ? tr().hintDemo
+    : activePositions ? tr().hintLive : tr().hintNoGps;
 }
 initMap();
 setTab('map');
+setLanguage(language);
 
 function draw(t) {
   let online = 0, alarm = 0, n = 0;
@@ -391,9 +474,9 @@ function draw(t) {
 
     const summary = buildSummary(d, true, 2);
     $('meta-' + rid).innerHTML = `
-      Цілей: <strong>${d.online ? d.targets.length : 0}</strong> · ${d.online ? 'S1/S2/S3 ' + d.sensors.map(x => x ? '✓' : '—').join(' / ') : 'без зв’язку'}<br>
+      ${tr().numberTargets}: <strong>${d.online ? d.targets.length : 0}</strong> · ${d.online ? 'S1/S2/S3 ' + d.sensors.map(x => x ? '✓' : '—').join(' / ') : tr().sensorsOffline}<br>
       ${Array.isArray(summary) ? summary.join('<br>') : summary}<br>
-      Курс: ${d.heading_deg == null ? 'немає компаса' : d.heading_deg + '°'}`;
+      ${tr().heading}: ${d.heading_deg == null ? tr().noCompass : d.heading_deg + '°'}`;
 
     setAlarmButton($('alarm-' + rid), d);
   }
@@ -410,14 +493,14 @@ function draw(t) {
     const sd = d.sensors || [false, false, false];
     const summary = buildSummary(d, false, 3);
     $('detail-summary').innerHTML = Array.isArray(summary)
-      ? `<div class="summary-title">Цілі в зоні:</div><ul>${summary.map(x => `<li>${x}</li>`).join('')}</ul>`
+      ? `<div class="summary-title">${tr().targetsInZone}</div><ul>${summary.map(x => `<li>${x}</li>`).join('')}</ul>`
       : summary;
     $('detail-stats').innerHTML = `
       <div class="details">
-        <div>СТАН<strong>${d.online ? (d.targets.length ? 'ALARM!' : 'ONLINE') : 'OFFLINE'}</strong></div>
-        <div>ЦІЛЕЙ<strong>${d.online ? d.targets.length : 0}</strong></div>
-        <div>НАПРЯМОК<strong>${d.heading_deg == null ? '—' : d.heading_deg + '°'}</strong></div>
-        <p>S1 ${sd[0] ? 'OK' : '—'} · S2 ${sd[1] ? 'OK' : '—'} · S3 ${sd[2] ? 'OK' : '—'} · Оновлення: ${d.age_seconds == null ? '—' : d.age_seconds + ' с'}</p>
+        <div>${tr().state}<strong>${d.online ? (d.targets.length ? 'ALARM!' : 'ONLINE') : 'OFFLINE'}</strong></div>
+        <div>${tr().targets}<strong>${d.online ? d.targets.length : 0}</strong></div>
+        <div>${tr().direction}<strong>${d.heading_deg == null ? '—' : d.heading_deg + '°'}</strong></div>
+        <p>S1 ${sd[0] ? 'OK' : '—'} · S2 ${sd[1] ? 'OK' : '—'} · S3 ${sd[2] ? 'OK' : '—'} · ${tr().updated}: ${d.age_seconds == null ? '—' : d.age_seconds + ' ' + tr().sec}</p>
       </div>`;
   }
 

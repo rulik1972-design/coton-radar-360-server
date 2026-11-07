@@ -121,3 +121,10 @@ footer{text-align:center;color:#789b96;font-size:12px;padding:22px 0}
 /* V6: detail dialog above Leaflet panes, markers, controls and popups. */
 #detail.overlay:not(.hidden){z-index:3000}
 #detail .detail-box{position:relative;z-index:3001}
+
+/* V8: compact two-language switch in the header */
+.language-switch{display:inline-flex;gap:3px;padding:3px;border:1px solid #46786f;background:#0e2830;border-radius:10px}
+.language-switch .lang-btn{padding:8px 10px;border:0;background:transparent;color:#afd5c9;border-radius:7px;font-size:12px;font-weight:750;white-space:nowrap}
+.language-switch .lang-btn.active{background:#218774;color:#ffffff;box-shadow:0 0 0 1px #73e1bc inset}
+.language-switch .lang-btn:focus-visible{outline:2px solid #b0ffe4;outline-offset:2px}
+@media(max-width:620px){.language-switch{order:-1}.actions{width:100%;justify-content:space-between;flex-wrap:wrap}}
