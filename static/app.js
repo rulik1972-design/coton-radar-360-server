@@ -33,7 +33,8 @@ const I18N = {
     northDirections: ['півночі', 'північного сходу', 'сходу', 'південного сходу', 'півдня', 'південного заходу', 'заходу', 'північного заходу'],
     shortDirections: ['Пн', 'ПнСх', 'Сх', 'ПдСх', 'Пд', 'ПдЗх', 'Зх', 'ПнЗх'],
     meters: 'м', kmh: 'км/год', sec: 'с',
-    pinClear: 'немає тривоги', pinAlarm: 'тривога', pinOffline: 'немає зв’язку'
+    pinClear: 'немає тривоги', pinAlarm: 'тривога', pinOffline: 'немає зв’язку',
+    log: 'ЛОГ', logTitle: 'Журнал спрацювань', download: 'Скачати .TXT', logEmpty: 'Спрацювань поки немає', logStart: 'Початок', logEnd: 'Кінець', logDuration: 'Тривалість', logActive: 'ТРИВАЄ', logSeconds: 'с', logDemo: 'ДЕМО: журнал цього браузера', logLive: 'LIVE: журнал сервера', logUnavailable: 'Не вдалося отримати журнал', logNote: 'У ДЕМО події зберігаються в цьому браузері; у LIVE — в пам’яті сервера, яка може очищатися під час перезапуску.'
   },
   en: {
     pageTitle: 'COTON RADAR NETWORK — 10 systems',
@@ -62,7 +63,8 @@ const I18N = {
     northDirections: ['north', 'northeast', 'east', 'southeast', 'south', 'southwest', 'west', 'northwest'],
     shortDirections: ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'],
     meters: 'm', kmh: 'km/h', sec: 's',
-    pinClear: 'clear', pinAlarm: 'alarm', pinOffline: 'offline'
+    pinClear: 'clear', pinAlarm: 'alarm', pinOffline: 'offline',
+    log: 'LOG', logTitle: 'Detection log', download: 'Download .TXT', logEmpty: 'No detections yet', logStart: 'Start', logEnd: 'End', logDuration: 'Duration', logActive: 'ACTIVE', logSeconds: 's', logDemo: 'DEMO: this browser log', logLive: 'LIVE: server log', logUnavailable: 'Could not load log', logNote: 'DEMO logs are saved in this browser; LIVE logs are kept in server memory and may disappear after a restart.'
   }
 };
 let language = 'uk';
@@ -86,6 +88,9 @@ function setLanguage(lang) {
   $('radar-map').setAttribute('aria-label', x.mapAria);
   set('legend-clear', x.legendClear); set('legend-alarm', x.legendAlarm); set('legend-offline', x.legendOffline);
   set('detail-title', x.detailTitle); set('close', x.close); $('close').setAttribute('aria-label', x.closeAria);
+  set('detail-log', x.log); set('log-title-label', x.logTitle); set('log-download', x.download); set('log-close', x.close); set('log-note', x.logNote);
+  document.querySelectorAll('.log-open').forEach(b => b.textContent = x.log);
+  if (activeLogRadar) renderLog();
   set('footer-note', x.footer);
   set('notice', fetchError ? x.errorPrefix + fetchError : hasFetched ? x.liveNotice : x.initialNotice);
   set('map-hint', x.hintNoGps);
@@ -117,16 +122,19 @@ for (const rid of IDS) {
     <div class="meta" id="meta-${rid}">${tr().noConnection}</div>
     <div class="unit-actions">
       <button class="alarm-button off" id="alarm-${rid}" type="button">OFFLINE</button>
+      <button class="log-open" id="log-${rid}" type="button">${tr().log}</button>
     </div>`;
   cell.addEventListener('click', () => openDetail(rid));
   cell.addEventListener('keydown', e => { if (e.key === 'Enter') openDetail(rid); });
   cell.querySelector(`#alarm-${rid}`).addEventListener('click', e => { e.stopPropagation(); openDetail(rid); });
+  cell.querySelector(`#log-${rid}`).addEventListener('click', e => { e.stopPropagation(); openLog(rid); });
   cards.appendChild(cell);
   canvases[rid] = cell.querySelector('canvas');
 }
 
 $('demo').addEventListener('click', () => {
   demo = !demo;
+  if (activeLogRadar) { activeLogEntries = []; activeLogError = ''; lastLogRefresh = 0; refreshLog(true); }
   $('demo').textContent = demo ? tr().demoOff : tr().demoOn;
   $('mode').textContent = demo ? 'DEMO' : 'LIVE';
   $('mode').className = 'pill ' + (demo ? 'demo' : '');
@@ -134,7 +142,11 @@ $('demo').addEventListener('click', () => {
 
 $('close').onclick = () => { selected = null; $('detail').classList.add('hidden'); };
 $('detail').onclick = e => { if (e.target === $('detail')) $('close').click(); };
-document.addEventListener('keydown', e => { if (e.key === 'Escape' && selected) $('close').click(); });
+$('detail-log').onclick = () => { if (selected) openLog(selected); };
+$('log-close').onclick = closeLog;
+$('log-overlay').onclick = e => { if (e.target === $('log-overlay')) closeLog(); };
+$('log-download').onclick = downloadLog;
+document.addEventListener('keydown', e => { if (e.key === 'Escape') { if (activeLogRadar) closeLog(); else if (selected) $('close').click(); } });
 
 function openDetail(rid) {
   selected = rid;
@@ -145,7 +157,8 @@ function openDetail(rid) {
 function fake(rid, t) {
   const i = IDS.indexOf(rid);
   const offline = [4, 9].includes(i);
-  const alarm = [0, 2, 5, 7].includes(i);
+  // DEMO simulates repeated alarm intervals so each radar's history can be tested.
+  const alarm = [0, 2, 5, 7].includes(i) && ((Math.floor((t + i * 5100) / 24000) % 2) === 0);
   const targets = [];
   if (!offline && alarm) {
     targets.push({
@@ -360,6 +373,115 @@ function paint(canvas, d, t, large = false) {
   ctx.fill();
 }
 
+// V9 — isolated alarm history for each radar.
+// DEMO: persistent in this browser. LIVE: fetched from server (recorded on ingest).
+const DEMO_LOG_KEY = 'coton-v9-demo-alarm-log';
+let demoHistory = {}, activeLogRadar = null, activeLogEntries = [], activeLogError = '';
+let logFetchInProgress = false, lastLogRefresh = 0;
+try {
+  const parsed = JSON.parse(localStorage.getItem(DEMO_LOG_KEY) || '{}');
+  if (parsed && typeof parsed === 'object') demoHistory = parsed;
+} catch (e) { demoHistory = {}; }
+function saveDemoHistory() {
+  try { localStorage.setItem(DEMO_LOG_KEY, JSON.stringify(demoHistory)); } catch (e) { /* private mode / quota */ }
+}
+function updateDemoHistory(t) {
+  for (const rid of IDS) {
+    const alarm = !!get(rid, t).alarm;
+    const list = Array.isArray(demoHistory[rid]) ? demoHistory[rid] : (demoHistory[rid] = []);
+    const last = list[list.length - 1];
+    if (alarm && (!last || last.end !== null)) {
+      list.push({ start: new Date(t).toISOString(), end: null });
+      if (list.length > 400) list.splice(0, list.length - 400);
+      saveDemoHistory();
+    } else if (!alarm && last && last.end === null) {
+      last.end = new Date(t).toISOString();
+      saveDemoHistory();
+    }
+  }
+}
+function timeText(value) {
+  if (!value) return '—';
+  const dt = new Date(value);
+  return Number.isNaN(dt.getTime()) ? '—' : dt.toLocaleString(language === 'uk' ? 'uk-UA' : 'en-GB', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit' });
+}
+function durationText(item, at = Date.now()) {
+  const start = Date.parse(item.start), end = item.end ? Date.parse(item.end) : at;
+  return Number.isFinite(start) && Number.isFinite(end) ? Math.max(0, Math.round((end - start) / 1000)) + ' ' + tr().logSeconds : '—';
+}
+function escapeHtml(v) {
+  return String(v).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
+}
+function renderLog() {
+  if (!activeLogRadar) return;
+  const x = tr();
+  $('log-radar-id').textContent = activeLogRadar;
+  $('log-mode').textContent = demo ? x.logDemo : x.logLive;
+  $('log-note').textContent = x.logNote;
+  if (activeLogError) {
+    $('log-content').textContent = x.logUnavailable + ': ' + activeLogError;
+    return;
+  }
+  if (!activeLogEntries.length) {
+    $('log-content').textContent = x.logEmpty;
+    return;
+  }
+  const rows = [...activeLogEntries].reverse().map((item, i) =>
+    `<tr><td>${activeLogEntries.length-i}</td><td>${escapeHtml(timeText(item.start))}</td><td>${item.end ? escapeHtml(timeText(item.end)) : `<strong class="log-active">${escapeHtml(x.logActive)}</strong>`}</td><td>${escapeHtml(durationText(item))}</td></tr>`).join('');
+  $('log-content').innerHTML = `<div class="log-table-scroll"><table class="log-table"><thead><tr><th>№</th><th>${x.logStart}</th><th>${x.logEnd}</th><th>${x.logDuration}</th></tr></thead><tbody>${rows}</tbody></table></div>`;
+}
+async function refreshLog(force = false) {
+  if (!activeLogRadar || logFetchInProgress || (!force && Date.now() - lastLogRefresh < 2500)) return;
+  const rid = activeLogRadar;
+  lastLogRefresh = Date.now();
+  if (demo) {
+    activeLogEntries = Array.isArray(demoHistory[rid]) ? demoHistory[rid] : [];
+    activeLogError = '';
+    renderLog();
+    return;
+  }
+  logFetchInProgress = true;
+  try {
+    const response = await fetch('/api/logs/' + encodeURIComponent(rid), { cache: 'no-store' });
+    if (!response.ok) throw Error('HTTP ' + response.status);
+    const data = await response.json();
+    if (rid === activeLogRadar && !demo) {
+      activeLogEntries = Array.isArray(data.events) ? data.events : [];
+      activeLogError = '';
+      renderLog();
+    }
+  } catch (err) {
+    if (rid === activeLogRadar && !demo) { activeLogError = err.message; renderLog(); }
+  } finally { logFetchInProgress = false; }
+}
+function openLog(rid) {
+  activeLogRadar = rid;
+  activeLogEntries = [];
+  activeLogError = '';
+  $('log-overlay').classList.remove('hidden');
+  lastLogRefresh = 0;
+  refreshLog(true);
+  renderLog();
+}
+function closeLog() { activeLogRadar = null; $('log-overlay').classList.add('hidden'); }
+function downloadLog() {
+  if (!activeLogRadar) return;
+  const x = tr();
+  const lines = [`COTON RADAR 360 — ${x.logTitle}`, `Radar: ${activeLogRadar}`, `Mode: ${demo ? 'DEMO' : 'LIVE'}`, `Export: ${timeText(new Date())}`, '----------------------------------------'];
+  if (!activeLogEntries.length) lines.push(x.logEmpty);
+  for (let i = 0; i < activeLogEntries.length; i++) {
+    const event = activeLogEntries[i];
+    lines.push(`#${i + 1} | ${x.logStart}: ${timeText(event.start)} | ${x.logEnd}: ${event.end ? timeText(event.end) : x.logActive} | ${x.logDuration}: ${durationText(event)}`);
+  }
+  lines.push('');
+  const file = new Blob(['\uFEFF' + lines.join('\r\n')], { type: 'text/plain;charset=utf-8' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(file);
+  a.download = `COTON_${activeLogRadar}_${demo ? 'DEMO' : 'LIVE'}_LOG_${new Date().toISOString().slice(0,10)}.txt`;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+}
+
 // COTON RADAR NETWORK — illustrative demo positions near towns in eastern Finland.
 // Not real devices, border installations, or precise field sites.
 const DEMO_LOCATIONS = [
@@ -459,6 +581,8 @@ setTab('map');
 setLanguage(language);
 
 function draw(t) {
+  if (demo) updateDemoHistory(t);
+  if (activeLogRadar) refreshLog();
   let online = 0, alarm = 0, n = 0;
 
   for (const rid of IDS) {

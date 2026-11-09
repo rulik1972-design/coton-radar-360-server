@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>COTON RADAR NETWORK — 10 комплексів</title>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css">
-  <link rel="stylesheet" href="/static/style.css?v=8">
+  <link rel="stylesheet" href="/static/style.css?v=9">
 </head>
 <body>
 <main>
@@ -54,6 +54,7 @@
           <h2 id="detail-title">Огляд 360°</h2>
         </div>
         <div class="detail-head-right">
+          <button id="detail-log" class="log-open" type="button">ЛОГ</button>
           <button id="detail-alarm" class="alarm-button clear large" type="button">CLEAR</button>
           <button id="close" aria-label="Закрити">✕ Закрити</button>
         </div>
@@ -65,9 +66,20 @@
     </div>
   </div>
 
+  <div id="log-overlay" class="overlay hidden" role="dialog" aria-modal="true" aria-labelledby="log-title-label">
+    <div class="detail-box log-box">
+      <div class="detail-head">
+        <div><small id="log-radar-id">RADAR-01</small><h2 id="log-title-label">Журнал спрацювань</h2><p id="log-mode">ДЕМО</p></div>
+        <div class="detail-head-right"><button id="log-download" type="button">Скачати .TXT</button><button id="log-close" type="button">✕ Закрити</button></div>
+      </div>
+      <div id="log-content" class="log-content">—</div>
+      <p id="log-note" class="log-note"></p>
+    </div>
+  </div>
+
   <footer id="footer-note">ДЕМО відображається тільки в цьому браузері. Реальні дані надходять окремо через /api/ingest. Тестовий Render Free не є надійною охоронною системою.</footer>
 </main>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
-<script src="/static/app.js?v=8"></script>
+<script src="/static/app.js?v=9"></script>
 </body>
 </html>

@@ -12,6 +12,7 @@ TTL = 7.0
 IDS = [f'RADAR-{i:02d}' for i in range(1, 11)]
 lock = threading.Lock()
 state = {}  # Render Free: volatile memory; no durable storage
+logs = {rid: [] for rid in IDS}  # up to 500 completed/active events per radar
 
 def device_keys():
     try:
@@ -30,11 +31,40 @@ def require_viewer():
         return Response('Authentication required', status=401, headers={'WWW-Authenticate':'Basic realm="COTON RADAR NETWORK"'})
     return None
 
+def close_stale_alarm_locked(rid):
+    """Close an active event when the associated radar stops reporting."""
+    old = state.get(rid)
+    history = logs[rid]
+    if old and history and history[-1]['end'] is None:
+        data, mono, wall = old
+        if time.monotonic() - mono > TTL:
+            history[-1]['end'] = wall + TTL
+
+
+def serialized_events(rid):
+    """Response is ISO-8601 UTC; active event duration increases in browser."""
+    from datetime import datetime, timezone
+    def stamp(epoch):
+        return datetime.fromtimestamp(epoch, tz=timezone.utc).isoformat().replace('+00:00', 'Z') if epoch is not None else None
+    with lock:
+        close_stale_alarm_locked(rid)
+        return [{'start':stamp(e['start']), 'end':stamp(e['end'])} for e in logs[rid]]
+
+@app.get('/api/logs/<rid>')
+def radar_logs(rid):
+    denied = require_viewer()
+    if denied:return denied
+    if rid not in IDS:return jsonify(error='unknown radar'),404
+    return jsonify(device_id=rid, events=serialized_events(rid))
+
+
 def current(rid):
     with lock:
+        close_stale_alarm_locked(rid)
+
         item = state.get(rid)
         if item:
-            data, stamp = item
+            data, stamp, wall = item
             data = dict(data)
         else:
             data, stamp = None, None
@@ -108,7 +138,18 @@ def ingest():
         return jsonify(error='invalid heading'),400
     normalized={'sequence':seq,'sensors':sensors,'targets':clean,'alarm':len(clean)>0,
                 'heading_deg':(round(heading%360,1) if heading is not None else None)}
-    with lock:state[rid]=(normalized,time.monotonic())
+    with lock:
+        now_mono, now_wall = time.monotonic(), time.time()
+        close_stale_alarm_locked(rid)
+        old = state.get(rid)
+        previous_alarm = bool(old and old[0].get('alarm') and now_mono - old[1] <= TTL)
+        history = logs[rid]
+        if normalized['alarm'] and not previous_alarm:
+            history.append({'start': now_wall, 'end': None})
+            if len(history) > 500: del history[:-500]
+        elif not normalized['alarm'] and previous_alarm and history and history[-1]['end'] is None:
+            history[-1]['end'] = now_wall
+        state[rid] = (normalized, now_mono, now_wall)
     return jsonify(ok=True,device_id=rid,received=len(clean))
 
 if __name__=='__main__':
