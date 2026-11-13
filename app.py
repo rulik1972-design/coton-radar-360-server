@@ -70,8 +70,10 @@ def current(rid):
             data, stamp = None, None
     age = (max(0, time.monotonic()-stamp) if stamp is not None else None)
     if data is None or age > TTL:
+        # Retain last known GPS position on the map, but never retain an expired alarm.
+        last_gps = {'latitude': data.get('latitude'), 'longitude': data.get('longitude')} if data else {}
         return {'device_id':rid, 'online':False, 'age_seconds':round(age,1) if age is not None else None,
-                'alarm':False, 'targets':[], 'sensors':[False,False,False], 'heading_deg':None}
+                'alarm':False, 'targets':[], 'sensors':[False,False,False], 'heading_deg':None, **last_gps}
     return {'device_id':rid,'online':True,'age_seconds':round(age,1),**data}
 
 @app.get('/health')
@@ -136,12 +138,30 @@ def ingest():
     heading=d.get('heading_deg')
     if heading is not None and (type(heading) not in (int,float) or not -360<=heading<=720):
         return jsonify(error='invalid heading'),400
+    # GPS: accept only finite and geographically valid coordinates.
+    # Supports numeric latitude/longitude fields from COTON firmware.
+    import math
+    lat, lon = d.get('latitude'), d.get('longitude')
+    gps_position = None
+    if lat is not None or lon is not None:
+        if not (type(lat) in (int, float) and type(lon) in (int, float)
+                and math.isfinite(lat) and math.isfinite(lon)
+                and -90 <= lat <= 90 and -180 <= lon <= 180
+                and not (lat == 0 and lon == 0)):
+            return jsonify(error='invalid GPS coordinates'),400
+        gps_position = (round(float(lat), 7), round(float(lon), 7))
     normalized={'sequence':seq,'sensors':sensors,'targets':clean,'alarm':len(clean)>0,
                 'heading_deg':(round(heading%360,1) if heading is not None else None)}
     with lock:
         now_mono, now_wall = time.monotonic(), time.time()
         close_stale_alarm_locked(rid)
         old = state.get(rid)
+        if gps_position:
+            normalized['latitude'], normalized['longitude'] = gps_position
+        elif old:
+            # Keep a previously received real GPS fix if this packet lacks a fix.
+            normalized['latitude'] = old[0].get('latitude')
+            normalized['longitude'] = old[0].get('longitude')
         previous_alarm = bool(old and old[0].get('alarm') and now_mono - old[1] <= TTL)
         history = logs[rid]
         if normalized['alarm'] and not previous_alarm:
@@ -154,3 +174,4 @@ def ingest():
 
 if __name__=='__main__':
     app.run(host='0.0.0.0',port=int(os.environ.get('PORT','10000')))
+
