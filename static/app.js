@@ -12,20 +12,20 @@ const I18N = {
     demoOn: 'Увімкнути ДЕМО', demoOff: 'Вимкнути ДЕМО',
     online: 'Комплексів онлайн', alarms: 'Тривог', total: 'Усього цілей', offline: 'Без зв’язку',
     mapTab: '🗺 КАРТА', radarsTab: '◎ 10 РАДАРІВ', viewLabel: 'Режим перегляду',
-    mapTitle: 'Фінляндія — східні регіони',
-    mapSubtitle: 'Умовні позиції поблизу східних міст • натисни на прапорець, щоб відкрити радар',
+    mapTitle: 'Карта радарів · реальні GPS-координати',
+    mapSubtitle: 'Показуються лише координати, отримані від пристроїв',
     mapAria: 'Карта східної Фінляндії з радарними прапорцями',
     legendClear: '🟢 CLEAR', legendAlarm: '🔴 ALARM — блимає', legendOffline: '⚪ OFFLINE',
     close: '✕ Закрити', closeAria: 'Закрити', detailTitle: 'Огляд 360°',
     noTargets: 'Цілей немає', noTargetsFull: 'Цілей немає.', outOfRange: 'Комплекс офлайн.', noConnection: 'Без зв’язку',
-    footer: 'ДЕМО відображається тільки в цьому браузері. Реальні дані надходять окремо через /api/ingest. Тестовий Render Free не є надійною охоронною системою.',
-    initialNotice: 'Дані оновлюються автоматично. Для перевірки без модемів натисни «Увімкнути ДЕМО».',
+    footer: 'Тільки реальні дані через /api/ingest. Render Free не гарантує збереження журналів після перезапуску.',
+    initialNotice: 'LIVE: очікуємо дані від реальних радарів. Фальшиві цілі вимкнені.',
     liveNotice: 'Дані з сервера. Натисни на радар або кнопку ALARM/CLEAR для перегляду на весь екран.',
     errorPrefix: 'Немає зв’язку із сервером: ',
     leafletError: 'Не вдалося завантажити карту. Перевір з’єднання з інтернетом.',
     hintDemo: 'ДЕМО: місця прапорців вигадані, GPS-модулі не підключені. Натисни на будь-який прапорець.',
     hintLive: 'LIVE: відображаються координати, які передані комплексами через сервер.',
-    hintNoGps: 'LIVE: GPS-координати ще не надходять. Натисни «Увімкнути ДЕМО», щоб побачити десять прапорців.',
+    hintNoGps: 'LIVE: GPS-координати ще не надходили. Прапорці з’являться після отримання реального GPS FIX та успішного передавання на сервер.',
     state: 'СТАН', targets: 'ЦІЛЕЙ', direction: 'НАПРЯМОК', heading: 'Курс', noCompass: 'немає компаса', updated: 'Оновлення',
     targetsInZone: 'Цілі в зоні:', numberTargets: 'Цілей', radar: 'Радар', target: 'Ціль', moreTargets: 'Ще цілей:',
     stationary: 'нерухома', standing: 'стоїть', approachingFrom: 'наближається з', movingAwayTowards: 'віддаляється у бік',
@@ -42,20 +42,20 @@ const I18N = {
     demoOn: 'Enable DEMO', demoOff: 'Disable DEMO',
     online: 'Systems online', alarms: 'Alerts', total: 'Total targets', offline: 'Offline',
     mapTab: '🗺 MAP', radarsTab: '◎ 10 RADARS', viewLabel: 'View mode',
-    mapTitle: 'Finland — eastern regions',
-    mapSubtitle: 'Illustrative positions near eastern towns · click a pin to open a radar',
+    mapTitle: 'Radar map · live GPS positions',
+    mapSubtitle: 'Only positions received from real radar devices are displayed',
     mapAria: 'Map of eastern Finland with radar pins',
     legendClear: '🟢 CLEAR', legendAlarm: '🔴 ALARM — flashing', legendOffline: '⚪ OFFLINE',
     close: '✕ Close', closeAria: 'Close', detailTitle: '360° View',
     noTargets: 'No targets', noTargetsFull: 'No targets detected.', outOfRange: 'System offline.', noConnection: 'No connection',
-    footer: 'DEMO is local to this browser. Live data is received separately via /api/ingest. Render Free is not a dependable security system.',
-    initialNotice: 'Data updates automatically. To test without modems, click “Enable DEMO”.',
+    footer: 'Real data only via /api/ingest. Render Free may lose alarm logs after server restart.',
+    initialNotice: 'LIVE: waiting for real radar devices. Simulated targets are disabled.',
     liveNotice: 'Live server data. Click a radar or its ALARM/CLEAR button to open the full view.',
     errorPrefix: 'Cannot connect to server: ',
     leafletError: 'Map could not be loaded. Check your internet connection.',
     hintDemo: 'DEMO: pin locations are fictional. GPS hardware is not connected. Click any pin.',
     hintLive: 'LIVE: showing coordinates reported by the systems through the server.',
-    hintNoGps: 'LIVE: no GPS coordinates received yet. Click “Enable DEMO” to view ten sample pins.',
+    hintNoGps: 'LIVE: no GPS positions received yet. Pins appear after a GPS fix and successful server upload.',
     state: 'STATUS', targets: 'TARGETS', direction: 'HEADING', heading: 'Heading', noCompass: 'no compass', updated: 'Updated',
     targetsInZone: 'Targets in range:', numberTargets: 'Targets', radar: 'Radar', target: 'Target', moreTargets: 'Additional targets:',
     stationary: 'stationary', standing: 'stationary', approachingFrom: 'approaching from', movingAwayTowards: 'moving away toward',
@@ -79,7 +79,7 @@ function setLanguage(lang) {
   document.title = x.pageTitle;
   const set = (id, value) => { const el = $(id); if (el) el.textContent = value; };
   set('subtitle', x.subtitle);
-  set('demo', demo ? x.demoOff : x.demoOn);
+  // LIVE only: demo toggle removed.
   set('label-online', x.online); set('label-alarms', x.alarms);
   set('label-total', x.total); set('label-offline', x.offline);
   set('tab-map', x.mapTab); set('tab-radars', x.radarsTab);
@@ -132,13 +132,6 @@ for (const rid of IDS) {
   canvases[rid] = cell.querySelector('canvas');
 }
 
-$('demo').addEventListener('click', () => {
-  demo = !demo;
-  if (activeLogRadar) { activeLogEntries = []; activeLogError = ''; lastLogRefresh = 0; refreshLog(true); }
-  $('demo').textContent = demo ? tr().demoOff : tr().demoOn;
-  $('mode').textContent = demo ? 'DEMO' : 'LIVE';
-  $('mode').className = 'pill ' + (demo ? 'demo' : '');
-});
 
 $('close').onclick = () => { selected = null; $('detail').classList.add('hidden'); };
 $('detail').onclick = e => { if (e.target === $('detail')) $('close').click(); };
@@ -154,43 +147,9 @@ function openDetail(rid) {
   $('detail-id').textContent = rid;
 }
 
-function fake(rid, t) {
-  const i = IDS.indexOf(rid);
-  const offline = [4, 9].includes(i);
-  // DEMO simulates repeated alarm intervals so each radar's history can be tested.
-  const alarm = [0, 2, 5, 7].includes(i) && ((Math.floor((t + i * 5100) / 24000) % 2) === 0);
-  const targets = [];
-  if (!offline && alarm) {
-    targets.push({
-      sector: (i % 3) + 1,
-      x_mm: Math.round(1400 * Math.sin(t * 0.00025 + i)),
-      y_mm: 3300 + 200 * i,
-      speed_cm_s: i % 2 ? 0 : -32
-    });
-    if (i % 3 === 0) {
-      targets.push({
-        sector: ((i + 1) % 3) + 1,
-        x_mm: 400 + Math.round(700 * Math.cos(t * 0.00018 + i)),
-        y_mm: 1800 + 50 * i,
-        speed_cm_s: -18
-      });
-    }
-  }
-  return {
-    device_id: rid,
-    online: !offline,
-    age_seconds: offline ? 12 : 0,
-    sensors: offline ? [false, false, false] : [true, true, true],
-    targets,
-    heading_deg: (i * 37) % 360,
-    alarm: targets.length > 0
-  };
-}
-
 function get(rid, t) {
-  return demo
-    ? fake(rid, t)
-    : (live[rid] || { device_id: rid, online: false, age_seconds: null, sensors: [false, false, false], targets: [], heading_deg: null, alarm: false });
+  return live[rid] || { device_id: rid, online: false, age_seconds: null,
+    sensors: [false, false, false], targets: [], heading_deg: null, alarm: false };
 }
 
 async function refresh() {
@@ -375,31 +334,8 @@ function paint(canvas, d, t, large = false) {
 
 // V9 — isolated alarm history for each radar.
 // DEMO: persistent in this browser. LIVE: fetched from server (recorded on ingest).
-const DEMO_LOG_KEY = 'coton-v9-demo-alarm-log';
-let demoHistory = {}, activeLogRadar = null, activeLogEntries = [], activeLogError = '';
+let activeLogRadar = null, activeLogEntries = [], activeLogError = '';
 let logFetchInProgress = false, lastLogRefresh = 0;
-try {
-  const parsed = JSON.parse(localStorage.getItem(DEMO_LOG_KEY) || '{}');
-  if (parsed && typeof parsed === 'object') demoHistory = parsed;
-} catch (e) { demoHistory = {}; }
-function saveDemoHistory() {
-  try { localStorage.setItem(DEMO_LOG_KEY, JSON.stringify(demoHistory)); } catch (e) { /* private mode / quota */ }
-}
-function updateDemoHistory(t) {
-  for (const rid of IDS) {
-    const alarm = !!get(rid, t).alarm;
-    const list = Array.isArray(demoHistory[rid]) ? demoHistory[rid] : (demoHistory[rid] = []);
-    const last = list[list.length - 1];
-    if (alarm && (!last || last.end !== null)) {
-      list.push({ start: new Date(t).toISOString(), end: null });
-      if (list.length > 400) list.splice(0, list.length - 400);
-      saveDemoHistory();
-    } else if (!alarm && last && last.end === null) {
-      last.end = new Date(t).toISOString();
-      saveDemoHistory();
-    }
-  }
-}
 function timeText(value) {
   if (!value) return '—';
   const dt = new Date(value);
@@ -416,7 +352,7 @@ function renderLog() {
   if (!activeLogRadar) return;
   const x = tr();
   $('log-radar-id').textContent = activeLogRadar;
-  $('log-mode').textContent = demo ? x.logDemo : x.logLive;
+  $('log-mode').textContent = x.logLive;
   $('log-note').textContent = x.logNote;
   if (activeLogError) {
     $('log-content').textContent = x.logUnavailable + ': ' + activeLogError;
@@ -434,12 +370,7 @@ async function refreshLog(force = false) {
   if (!activeLogRadar || logFetchInProgress || (!force && Date.now() - lastLogRefresh < 2500)) return;
   const rid = activeLogRadar;
   lastLogRefresh = Date.now();
-  if (demo) {
-    activeLogEntries = Array.isArray(demoHistory[rid]) ? demoHistory[rid] : [];
-    activeLogError = '';
-    renderLog();
-    return;
-  }
+
   logFetchInProgress = true;
   try {
     const response = await fetch('/api/logs/' + encodeURIComponent(rid), { cache: 'no-store' });
@@ -467,7 +398,7 @@ function closeLog() { activeLogRadar = null; $('log-overlay').classList.add('hid
 function downloadLog() {
   if (!activeLogRadar) return;
   const x = tr();
-  const lines = [`COTON RADAR 360 — ${x.logTitle}`, `Radar: ${activeLogRadar}`, `Mode: ${demo ? 'DEMO' : 'LIVE'}`, `Export: ${timeText(new Date())}`, '----------------------------------------'];
+  const lines = [`COTON RADAR 360 — ${x.logTitle}`, `Radar: ${activeLogRadar}`, 'Mode: LIVE', `Export: ${timeText(new Date())}`, '----------------------------------------'];
   if (!activeLogEntries.length) lines.push(x.logEmpty);
   for (let i = 0; i < activeLogEntries.length; i++) {
     const event = activeLogEntries[i];
@@ -477,25 +408,12 @@ function downloadLog() {
   const file = new Blob(['\uFEFF' + lines.join('\r\n')], { type: 'text/plain;charset=utf-8' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(file);
-  a.download = `COTON_${activeLogRadar}_${demo ? 'DEMO' : 'LIVE'}_LOG_${new Date().toISOString().slice(0,10)}.txt`;
+  a.download = `COTON_${activeLogRadar}_LIVE_LOG_${new Date().toISOString().slice(0,10)}.txt`;
   document.body.appendChild(a); a.click(); a.remove();
   setTimeout(() => URL.revokeObjectURL(a.href), 1000);
 }
 
-// COTON RADAR NETWORK — illustrative demo positions near towns in eastern Finland.
-// Not real devices, border installations, or precise field sites.
-const DEMO_LOCATIONS = [
-  [61.061, 28.190], // 01 Lappeenranta
-  [61.169, 28.769], // 02 Imatra
-  [62.601, 29.763], // 03 Joensuu
-  [63.317, 30.024], // 04 Lieksa
-  [64.127, 29.517], // 05 Kuhmo
-  [64.888, 28.913], // 06 Suomussalmi
-  [65.965, 29.188], // 07 Kuusamo
-  [66.833, 28.670], // 08 Salla
-  [66.713, 27.430], // 09 Kemijärvi
-  [68.656, 27.539]  // 10 Ivalo
-];
+// COTON RADAR NETWORK LIVE: no fictitious locations.
 let mapView = null;
 const mapMarkers = {};
 let currentTab = 'map';
@@ -520,31 +438,31 @@ function initMap() {
     $('radar-map').textContent = tr().leafletError;
     return;
   }
-  mapView = L.map('radar-map', { zoomControl: true }).setView([65.0, 28.7], 6);
+  mapView = L.map('radar-map', { zoomControl: true }).setView([50.5, 25.0], 5);
   L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
     maxZoom: 19,
     attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> contributors'
   }).addTo(mapView);
-  // Fit the whole illustrative Finnish radar network into view.
-  mapView.fitBounds(L.latLngBounds(DEMO_LOCATIONS), { padding: [35, 35], maxZoom: 7 });
+  // Center on first confirmed live GPS coordinate when available.
   setTimeout(() => mapView.invalidateSize(), 0);
 }
 function mapPositionFor(d, i) {
-  if (demo) return DEMO_LOCATIONS[i];
+  // No demo locations in LIVE version.
   // LIVE points only if verified numeric GPS fields are returned by the server.
   const lat = d.latitude, lon = d.longitude;
-  if (d.online && typeof lat === 'number' && typeof lon === 'number' &&
+  if (typeof lat === 'number' && typeof lon === 'number' &&
       Number.isFinite(lat) && Number.isFinite(lon) &&
       lat >= -90 && lat <= 90 && lon >= -180 && lon <= 180 && (lat !== 0 || lon !== 0)) {
     return [lat, lon];
   }
   return null;
 }
-let lastMarkerUpdate = 0;
+let lastMarkerUpdate = 0, centeredOnLiveGps = false;
 function updateMapMarkers(t, force = false) {
   if (!mapView || (!force && t - lastMarkerUpdate < 350)) return;
   lastMarkerUpdate = t;
   let activePositions = 0;
+  let firstPosition = null;
   for (let i = 0; i < IDS.length; i++) {
     const rid = IDS[i], d = get(rid, t);
     const coords = mapPositionFor(d, i);
@@ -553,6 +471,7 @@ function updateMapMarkers(t, force = false) {
       continue;
     }
     activePositions++;
+    if (!firstPosition) firstPosition = coords;
     const state = !d.online ? 'offline' : (d.targets || []).length ? 'alarm' : 'clear';
     const label = String(i + 1);
     const icon = L.divIcon({
@@ -572,16 +491,18 @@ function updateMapMarkers(t, force = false) {
     }
     mapMarkers[rid]._cotonState = state;
   }
-  $('map-hint').textContent = demo
-    ? tr().hintDemo
-    : activePositions ? tr().hintLive : tr().hintNoGps;
+  if (firstPosition && !centeredOnLiveGps) {
+    mapView.setView(firstPosition, 13);
+    centeredOnLiveGps = true;
+  }
+  $('map-hint').textContent = activePositions ? tr().hintLive : tr().hintNoGps;
 }
 initMap();
 setTab('map');
 setLanguage(language);
 
 function draw(t) {
-  if (demo) updateDemoHistory(t);
+  // Never generate simulated targets/events in LIVE mode.
   if (activeLogRadar) refreshLog();
   let online = 0, alarm = 0, n = 0;
 
